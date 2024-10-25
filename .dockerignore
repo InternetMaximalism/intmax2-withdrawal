@@ -1,0 +1,14 @@
+.vscode
+.idea
+.DS_Store
+build
+**/*.pb.go
+**/*.pb.gw.go
+**/*.gen.go
+intmax2-withdrawal
+**/mock_*
+vendor
+.env
+docs/swagger/withdrawal
+internal/pb/gen
+third_party/OpenAPI/withdrawal_service/withdrawal
