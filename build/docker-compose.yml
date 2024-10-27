@@ -1,0 +1,70 @@
+networks:
+  intmax2-withdrawal:
+
+services:
+  intmax2-withdrawal-service:
+    container_name: intmax2-withdrawal-service
+    image: 'intmax2-withdrawal-service:dev'
+    working_dir: /app
+    command: sh -c "./intmax2-withdrawal migrate --action up && ./intmax2-withdrawal run"
+    env_file:
+      - env.docker.withdrawal-server
+    restart: always
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile
+      args:
+        SWAGGER_HOST_URL: ${SWAGGER_HOST_URL}
+        SWAGGER_BASE_PATH: ${SWAGGER_BASE_PATH}
+    volumes:
+      - ../scripts/x509:/app/x509
+    networks:
+      - intmax2-withdrawal
+    depends_on:
+      - intmax2-withdrawal-ot-collector
+      - intmax2-withdrawal-postgres
+    ports:
+      - '8784:80'
+      - '8785:10000'
+
+  intmax2-withdrawal-postgres:
+    container_name: intmax2-withdrawal-postgres
+    image: 'postgres:15.3-alpine3.17'
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=state
+    ports:
+      - '15434:5432'
+    networks:
+      - intmax2-withdrawal
+    volumes:
+      - ./sql_dbs/intmax2-withdrawal-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  intmax2-withdrawal-ot-collector:
+    container_name: intmax2-withdrawal-ot-collector
+    image: "otel/opentelemetry-collector-contrib:0.37.1"
+    networks:
+      - intmax2-withdrawal
+    ports:
+      - "4319:4317"        # OTLP gRPC receiver
+      - "4320:4318"        # OTLP HTTP receiver
+    volumes:
+      - ./open-telemetry-collector-config.yaml:/etc/otel/config.yaml
+    depends_on:
+      - intmax2-withdrawal-jaeger-all-in-one
+
+  intmax2-withdrawal-jaeger-all-in-one:
+    container_name: intmax2-withdrawal-jaeger-all-in-one
+    image: "jaegertracing/all-in-one:latest"
+    networks:
+      - intmax2-withdrawal
+    ports:
+      - "16786:16686"
+      - "14768:14268"
+      - "14750:14250"
